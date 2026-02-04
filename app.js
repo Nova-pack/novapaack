@@ -48,11 +48,24 @@ window.addEventListener('error', (event) => {
 function init() {
     const configStr = getSafeStorage('novapack_firebase_config');
 
+    // Check if firebase is loaded
+    if (typeof firebase === 'undefined') {
+        const errorMsg = "Error: Las librerías de Firebase no se han cargado. Comprueba tu conexión a internet.";
+        console.error(errorMsg);
+        document.body.innerHTML += `<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:20px;z-index:9999;">
+            <h2>Error de Conexión</h2>
+            <p>${errorMsg}</p>
+        </div>`;
+        return;
+    }
+
     if (configStr) {
         try {
             const config = JSON.parse(configStr);
             console.log("Initializing Firebase with saved config...");
-            firebase.initializeApp(config);
+            if (!firebase.apps.length) {
+                firebase.initializeApp(config);
+            }
             db = firebase.firestore();
 
             // Setup Auth Listener
@@ -1027,42 +1040,10 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 });
 
 // Event Listeners - UI
-// document.getElementById('new-ticket-btn').addEventListener('click', () => {
-//     // Reset to create mode
-//     editingId = null;
-//     document.querySelector('.create-header h2').textContent = "Nuevo Albarán";
-//     // Fix button selector since it's now inside the full screen form
-//     const submitBtn = document.querySelector('#create-ticket-form button[type="submit"]');
-//     if (submitBtn) submitBtn.textContent = "Generar Albarán";
 
-//     forms.createTicket.reset();
-//     document.getElementById('save-destination-check').checked = false; // default unchecked
-
-//     // Load Default Sender
-//     const defaultSender = getSafeStorage('novapack_default_sender');
-//     if (defaultSender) {
-//         document.getElementById('ticket-sender').value = defaultSender;
-//         document.getElementById('save-default-sender').checked = true;
-//     }
-
-//     views.createModal.classList.remove('hidden');
-// });
 
 // Add New Size Logic
-document.getElementById('add-new-size').addEventListener('click', () => {
-    const newSize = prompt("Nombre del nuevo tipo de bulto:");
-    if (newSize) {
-        const currentSizes = getSafeStorage('novapack_sizes') || defaultSizes;
-        const newSizesList = currentSizes + ", " + newSize;
-        localStorage.setItem('novapack_sizes', newSizesList);
 
-        // Refresh Dropdowns
-        loadSettings();
-
-        // Select the new one
-        document.getElementById('ticket-size').value = newSize.trim();
-    }
-});
 
 // Increment Packages Logic
 document.getElementById('btn-add-package').addEventListener('click', () => {
