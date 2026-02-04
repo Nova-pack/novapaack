@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOVAPACK - Generador de Albaranes</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDK (Compat version for easier local execution without bundler) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body>
+
+    <!-- Auth View -->
+    <div id="auth-view" class="container">
+        <div class="card auth-card">
+            <h1 class="logo-text">NOVA<span class="logo-highlight">PACK</span></h1>
+            <p class="mb-4">Plataforma de Albaranes Digitales</p>
+
+            <div id="auth-error" class="text-primary mb-4 hidden"></div>
+
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #eee;">
+                <button type="button" id="tab-login" class="btn btn-block"
+                    style="background:transparent; color:black; border-bottom: 3px solid #FF6600; border-radius:0;">Iniciar
+                    Sesión</button>
+                <button type="button" id="tab-register" class="btn btn-block"
+                    style="background:transparent; color:#999; border-bottom: 3px solid transparent; border-radius:0;">Nuevo
+                    Cliente</button>
+            </div>
+
+            <form id="auth-form">
+                <div class="form-group">
+                    <label class="form-label" id="label-username">Usuario / Email</label>
+                    <input type="text" id="username" class="form-control" placeholder="usuario" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contraseña</label>
+                    <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="btn-auth-submit" class="btn btn-primary btn-block mb-4">Entrar</button>
+            </form>
+
+
+            <!-- Config Setup Link -->
+            <div
+                style="margin-top: 2rem; font-size: 0.8rem; opacity: 0.7; display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+                <a href="#" id="show-config">Configuración de Base de Datos</a>
+                <a href="#" id="reset-app" style="color: #dc3545;">⚠️ Reiniciar / Borrar Datos Locales</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View (Split Layout) -->
+    <div id="dashboard-view" class="hidden"
+        style="height: 100vh; display: flex; flex-direction: column; overflow: hidden;">
+        <header class="toolbar" style="flex: 0 0 auto;">
+            <div class="container toolbar-content" style="max-width: 100%; padding: 0 20px;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <h2>NOVA<span style="color: black;">PACK</span></h2>
+                    <!-- Context Actions -->
+                    <div id="editor-actions" class="hidden" style="display:flex; gap:10px; margin-left:20px;">
+                        <button id="action-new" class="btn btn-sm btn-primary">+ Nuevo</button>
+                        <button id="action-print" class="btn btn-sm btn-outline"
+                            style="border-color:white; color:white;">🖨️ Imprimir</button>
+                        <button id="action-label" class="btn btn-sm btn-outline"
+                            style="border-color:white; color:white;">🏷️ Etiquetas</button>
+                        <button id="action-share" class="btn btn-sm btn-outline"
+                            style="border-color: #25D366; color: #25D366;">📱 WhatsApp</button>
+                        <button id="action-delete" class="btn btn-sm btn-outline"
+                            style="border-color:#ff4444; color:#ff4444;">🗑️ Borrar</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span id="user-display">Usuario</span>
+                    <button id="logout-btn" class="btn btn-outline"
+                        style="border-color: white; color: white;">Salir</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-container" style="display: flex; flex: 1; overflow: hidden;">
+            <!-- LEFT: Ticket List -->
+            <div class="ticket-sidebar"
+                style="width: 350px; background: #f8f9fa; border-right: 1px solid #ddd; display: flex; flex-direction: column;">
+                <div class="sidebar-header" style="padding: 10px; background: #fff; border-bottom: 1px solid #eee;">
+                    <div style="display:flex; gap:10px; margin-bottom:5px;">
+                        <input type="text" id="ticket-search" class="form-control" placeholder="🔍 Buscar..."
+                            style="font-size: 0.9rem;">
+                    </div>
+                    <input type="date" id="date-filter" class="form-control" style="font-size: 0.8rem;">
+                </div>
+                <div id="tickets-list" class="ticket-list-scroll" style="flex: 1; overflow-y: auto; padding: 10px;">
+                    <!-- List Items injected here -->
+                    <div style="text-align: center; padding: 20px; color: #999;">Cargando...</div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Editor Area -->
+            <div class="ticket-editor" style="flex: 1; padding: 10px; overflow-y: auto; background: #fff;">
+                <div class="card editor-card" style="margin: 0 auto;">
+                    <!-- Editor Tabs -->
+                    <div style="display:flex; border-bottom:1px solid #ddd; margin-bottom:1rem;">
+                        <button id="tab-mode-new" class="btn btn-block"
+                            style="background:white; color:var(--brand-primary); border-bottom: 2px solid var(--brand-primary); border-radius:0;">+
+                            Nuevo</button>
+                        <button id="tab-mode-edit" class="btn btn-block"
+                            style="background:transparent; color:#999; border-bottom: 2px solid transparent; border-radius:0;">✎
+                            Modificar</button>
+
+                    </div>
+
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; visibility:hidden; height:0;">
+                        <h2 id="editor-title" style="margin:0; font-size:1.2rem;">Nuevo Albarán</h2>
+                        <span id="editor-status" style="font-size:0.8rem; color:#888;">Borrador</span>
+                    </div>
+
+                    <form id="create-ticket-form">
+                        <!-- ... form content preserved/expected below ... -->
+
+                    </form>
+
+                    <!-- Label View -->
+                    <div id="labels-view" class="hidden" style="text-align: center; padding: 2rem;">
+                        <div id="labels-empty" style="color: #999;">
+                            Selecciona un albarán de la lista para imprimir sus etiquetas.
+                        </div>
+                        <div id="labels-content" class="hidden">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">🖨️</div>
+                            <h3 id="lbl-ref" style="margin-bottom: 0.5rem;">REF</h3>
+                            <p id="lbl-dest" style="color: #666; margin-bottom: 2rem;">Destinatario</p>
+
+                            <div
+                                style="background: #f9f9f9; padding: 1.5rem; border-radius: 8px; border: 1px solid #eee; margin-bottom: 2rem;">
+                                <label class="form-label">Opciones de Impresión</label>
+                                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+                                    <button id="btn-print-labels" class="btn btn-primary btn-lg"
+                                        style="width: auto; padding-left: 3rem; padding-right: 3rem;">
+                                        Imprimir Etiquetas
+                                    </button>
+                                </div>
+                                <p style="margin-top:1rem; font-size:0.85rem; color:#888;">Se generará una etiqueta por
+                                    cada bulto (Ej: 1/3, 2/3, 3/3)</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group"
+                        style="background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                        <label class="form-label" style="color: #FF6600;">📂 Cliente Guardado</label>
+                        <select id="client-picker" class="form-control">
+                            <option value="">-- Buscar --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group"
+                        style="border-bottom: 1px dashed #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                        <label class="form-label">Remitente</label>
+                        <input type="text" id="ticket-sender" class="form-control" placeholder="Nombre del Remitente">
+                        <label style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;"><input type="checkbox"
+                                id="save-default-sender"> Predeterminado</label>
+                    </div>
+
+                    <div class="form-group" style="position: relative;">
+                        <label class="form-label">Destinatario</label>
+                        <input type="text" id="ticket-receiver" class="form-control" required autocomplete="off">
+                        <div id="suggestions-box"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" id="ticket-address" class="form-control" required>
+                    </div>
+
+                    <div style="margin-bottom: 1rem;"><label style="font-size: 0.9rem; color: #666;"><input
+                                type="checkbox" id="save-destination-check"> Guardar Destino</label></div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Bultos</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="number" id="ticket-packages" class="form-control" min="1" value="1"
+                                    style="text-align: center;">
+                                <button type="button" id="btn-add-package" class="btn btn-success"
+                                    style="width: 40px; font-weight: bold;">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mercancía</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap:wrap;">
+                                <select id="ticket-size" class="form-control" style="flex:1; min-width:120px;"></select>
+                                <button type="button" id="btn-toggle-new-size" class="btn btn-secondary"
+                                    title="Añadir nuevo tipo">+</button>
+                            </div>
+                            <div id="new-size-container" class="hidden"
+                                style="margin-top:0.5rem; display:flex; gap:0.5rem;">
+                                <input type="text" id="new-size-input" class="form-control"
+                                    placeholder="Descripción (Ej: Palet Europeo)">
+                                <button type="button" id="btn-save-new-size" class="btn btn-primary"
+                                    style="padding:0 15px;">OK</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Peso</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <select id="ticket-weight-select" class="form-control" style="flex:1;"></select>
+                                <input type="number" id="ticket-weight-manual" class="form-control hidden"
+                                    placeholder="Kg">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Portes</label>
+                            <select id="ticket-shipping-type" class="form-control">
+                                <option value="Pagados">Pagados</option>
+                                <option value="Debidos">Debidos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Reembolso (€)</label>
+                        <input type="number" id="ticket-cod" class="form-control" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Observaciones</label>
+                        <textarea id="ticket-notes" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">💾 GUARDAR
+                            ALBARÁN</button>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create View Removed -->
+
+    <!-- Config Modal -->
+    <div id="config-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Conectar con la Nube (Firebase)</h2>
+            <div
+                style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #856404; border: 1px solid #ffeeba;">
+                <strong>Instrucciones:</strong>
+                <ol style="margin-left: 1.5rem; margin-top: 0.5rem; line-height: 1.4;">
+                    <li>Ve a <a href="https://console.firebase.google.com" target="_blank"
+                            style="color: #d35400; text-decoration: underline;">console.firebase.google.com</a> y crea
+                        un proyecto.</li>
+                    <li>Entra en el proyecto y pulsa el icono <strong>&lt;/&gt;</strong> (Web) para registrar una app.
+                    </li>
+                    <li>Copia el código que te dan dentro de <code>const firebaseConfig = { ... };</code></li>
+                    <li>Pégalo aquí abajo completo (puede incluir el "const..." o solo el objeto).</li>
+                    <li><strong>Importante:</strong> En la consola de Firebase, activa "Authentication" (Email) y
+                        "Firestore Database".</li>
+                </ol>
+            </div>
+            <textarea id="firebase-config-input" class="form-control" rows="6" placeholder='const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  ...
+};'></textarea>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button id="save-config" class="btn btn-primary">Guardar y Conectar</button>
+                <button id="close-config" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Area -->
+    <div id="print-area" class="hidden"></div>
+
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+
+</html>
