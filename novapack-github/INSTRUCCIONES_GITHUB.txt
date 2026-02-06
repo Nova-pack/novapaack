@@ -1,0 +1,21 @@
+PASOS PARA SUBIR TU PÁGINA A GITHUB
+
+Esta carpeta contiene todo lo necesario para que tu aplicación sea accesible en internet.
+
+OPCIÓN 1: SUBIR DESDE LA WEB (Más fácil)
+1. Ve a https://github.com/new y crea un nuevo repositorio (ponle nombre, ej: "novapack-app").
+2. En la pantalla siguiente, busca donde dice "uploading an existing file".
+3. Arrastra TODOS los archivos que hay dentro de esta carpeta (index.html, style.css, app.js, README.md) a esa ventana.
+4. Pulsa el botón verde "Commit changes".
+5. ¡Listo! Tu código está guardado.
+
+OPCIÓN 2: ACTIVAR LA PÁGINA (GITHUB PAGES)
+Una vez subidos los archivos:
+1. En tu repositorio de GitHub, ve a la pestaña "Settings" (arriba a la derecha).
+2. En el menú de la izquierda, busca y pulsa en "Pages".
+3. En la sección "Build and deployment", bajo "Branch", selecciona "main" (o "master") y deja la carpeta en "root".
+4. Pulsa "Save".
+5. Espera unos minutos y refresca la página. Verás un enlace (ej: https://tu-usuario.github.io/novapack-app/). ¡Esa es tu web pública!
+
+NOTA IMPORTANTE:
+La base de datos seguirá funcionando porque usamos Firebase externamente. No necesitas reconfigurar nada si ya guardaste la configuración en tu navegador anteriormente, pero otros usuarios tendrán que meter la configuración la primera vez igual que tú.
